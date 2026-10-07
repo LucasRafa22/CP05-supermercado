@@ -49,14 +49,24 @@ public partial class Program
         // ============================================================
         // DATABASE - ORACLE
         // ============================================================
-        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        if (builder.Environment.IsEnvironment("Testing"))
         {
-            var connectionString =
-                builder.Configuration.GetConnectionString(
-                    "RecommendaContextOracle");
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            {
+                options.UseInMemoryDatabase("SupermercadoApiTests");
+            });
+        }
+        else
+        {
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            {
+                var connectionString =
+                    builder.Configuration.GetConnectionString(
+                        "RecommendaContextOracle");
 
-            options.UseOracle(connectionString);
-        });
+                options.UseOracle(connectionString);
+            });
+        }
 
         // ============================================================
         // DEPENDENCY INJECTION

@@ -10,7 +10,7 @@ namespace Supermercado.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[ApiVersion("1.0", Deprecated = true)]
+[ApiVersion("1.0")]
 [ApiVersion("2.0")]
 public class ProdutoController : ControllerBase
 {
@@ -44,6 +44,8 @@ public class ProdutoController : ControllerBase
             traceId);
 
         var result = await _repo.GetAllAsync();
+
+        Response.Headers["api-deprecated-versions"] = "1.0";
 
         _logger.LogInformation(
             "GET /produtos V1 finalizado | TraceId: {TraceId} | Total: {Count}",
