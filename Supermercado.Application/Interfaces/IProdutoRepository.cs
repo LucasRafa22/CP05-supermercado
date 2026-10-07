@@ -9,4 +9,5 @@ public interface IProdutoRepository
     Task AddAsync(Produto produto);
     Task UpdateAsync(Produto produto);
     Task DeleteAsync(Guid id);
+    IQueryable<Produto> GetQueryable();
 }
