@@ -4,6 +4,7 @@ using Supermercado.Application.DTOs.Produto;
 using Supermercado.Application.Interfaces;
 using Supermercado.Domain.Entities;
 using Asp.Versioning;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Supermercado.API.Controllers;
 
@@ -215,6 +216,7 @@ public class ProdutoController : ControllerBase
     /// Cria produto.
     /// </summary>
     [HttpPost]
+    [EnableRateLimiting("produto-write")]
     public async Task<ActionResult> Create(ProdutoCreateDto dto)
     {
         var traceId = HttpContext.TraceIdentifier;
