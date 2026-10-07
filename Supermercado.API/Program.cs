@@ -1,14 +1,22 @@
 using System.Globalization;
+using System.Threading.RateLimiting;
+
 using Asp.Versioning;
+
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+
+using Swashbuckle.AspNetCore.SwaggerGen;
+
 using Supermercado.API.Middlewares;
+using Supermercado.API.Swagger;
 using Supermercado.Application.Interfaces;
+using Supermercado.Application.Services;
 using Supermercado.Infrastructure.Data;
 using Supermercado.Infrastructure.Repositories;
-using System.Threading.RateLimiting;
 
 namespace Supermercado.API;
 
@@ -21,56 +29,80 @@ public partial class Program
         // ============================================================
         // CONTROLLERS
         // ============================================================
+
         builder.Services.AddControllers();
 
         // ============================================================
         // API VERSIONING
         // ============================================================
+
         builder.Services
             .AddApiVersioning(options =>
             {
-                options.DefaultApiVersion = new ApiVersion(2, 0);
+                // V2 é a versão padrão
+                options.DefaultApiVersion =
+                    new ApiVersion(2, 0);
 
-                options.AssumeDefaultVersionWhenUnspecified = true;
+                // Sem versão informada -> V2
+                options.AssumeDefaultVersionWhenUnspecified =
+                    true;
 
-                options.ReportApiVersions = true;
+                // Informa versões suportadas/depreciadas
+                options.ReportApiVersions =
+                    true;
 
-                options.ApiVersionReader = ApiVersionReader.Combine(
-                    new QueryStringApiVersionReader("api-version"),
-                    new HeaderApiVersionReader("X-Api-Version")
-                );
+                // Permite:
+                // ?api-version=1.0
+                // X-Api-Version: 1.0
+                options.ApiVersionReader =
+                    ApiVersionReader.Combine(
+                        new QueryStringApiVersionReader(
+                            "api-version"),
+
+                        new HeaderApiVersionReader(
+                            "X-Api-Version")
+                    );
             })
+            .AddMvc()
             .AddApiExplorer(options =>
             {
-                options.GroupNameFormat = "'v'VVV";
-                options.SubstituteApiVersionInUrl = false;
+                options.GroupNameFormat =
+                    "'v'VVV";
+
+                options.SubstituteApiVersionInUrl =
+                    false;
             });
 
         // ============================================================
-        // DATABASE - ORACLE
+        // DATABASE
         // ============================================================
+
         if (builder.Environment.IsEnvironment("Testing"))
         {
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            {
-                options.UseInMemoryDatabase("SupermercadoApiTests");
-            });
+            builder.Services.AddDbContext<ApplicationDbContext>(
+                options =>
+                {
+                    options.UseInMemoryDatabase(
+                        "SupermercadoApiTests");
+                });
         }
         else
         {
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            {
-                var connectionString =
-                    builder.Configuration.GetConnectionString(
-                        "RecommendaContextOracle");
+            builder.Services.AddDbContext<ApplicationDbContext>(
+                options =>
+                {
+                    var connectionString =
+                        builder.Configuration.GetConnectionString(
+                            "RecommendaContextOracle");
 
-                options.UseOracle(connectionString);
-            });
+                    options.UseOracle(connectionString);
+                });
         }
 
         // ============================================================
         // DEPENDENCY INJECTION
         // ============================================================
+
         builder.Services.AddScoped(
             typeof(IRepository<>),
             typeof(Repository<>));
@@ -79,44 +111,43 @@ public partial class Program
             IProdutoRepository,
             ProdutoRepository>();
 
+        builder.Services.AddScoped<
+            ProdutoService>();
+
         // ============================================================
         // SWAGGER
         // ============================================================
+
         builder.Services.AddEndpointsApiExplorer();
 
         builder.Services.AddSwaggerGen(options =>
         {
-            options.SwaggerDoc(
-                "v1",
-                new Microsoft.OpenApi.Models.OpenApiInfo
-                {
-                    Title = "Supermercado API",
-                    Version = "v1",
-                    Description = "API do Supermercado - Versão 1 (Deprecated)"
-                });
-
-            options.SwaggerDoc(
-                "v2",
-                new Microsoft.OpenApi.Models.OpenApiInfo
-                {
-                    Title = "Supermercado API",
-                    Version = "v2",
-                    Description = "API do Supermercado - Versão 2"
-                });
+            options.OperationFilter<
+                SwaggerDefaultValues>();
         });
+
+        builder.Services.AddTransient<
+            IConfigureOptions<SwaggerGenOptions>,
+            ConfigureSwaggerOptions>();
 
         // ============================================================
         // RATE LIMITING
         // ============================================================
+
         builder.Services.AddRateLimiter(options =>
         {
-            options.OnRejected = async (context, cancellationToken) =>
+            options.OnRejected = async (
+                context,
+                cancellationToken) =>
             {
                 if (context.Lease.TryGetMetadata(
                     MetadataName.RetryAfter,
                     out var retryAfter))
                 {
-                    context.HttpContext.Response.Headers.RetryAfter =
+                    context.HttpContext
+                        .Response
+                        .Headers
+                        .RetryAfter =
                         ((int)Math.Ceiling(
                             retryAfter.TotalSeconds))
                         .ToString(
@@ -124,27 +155,45 @@ public partial class Program
                 }
                 else
                 {
-                    context.HttpContext.Response.Headers.RetryAfter = "60";
+                    context.HttpContext
+                        .Response
+                        .Headers
+                        .RetryAfter = "60";
                 }
 
-                context.HttpContext.Response.StatusCode =
-                    StatusCodes.Status429TooManyRequests;
+                context.HttpContext
+                    .Response
+                    .StatusCode =
+                    StatusCodes
+                        .Status429TooManyRequests;
 
-                context.HttpContext.Response.ContentType =
-                    "application/json";
+                context.HttpContext
+                    .Response
+                    .ContentType =
+                    "application/problem+json";
 
                 var response = new
                 {
-                    type = "https://httpstatuses.com/429",
-                    title = "Limite de requisições excedido",
+                    type =
+                        "https://httpstatuses.com/429",
+
+                    title =
+                        "Limite de requisições excedido",
+
                     status = 429,
+
                     detail =
-                        "O limite de requisições para este endpoint foi excedido. Tente novamente após o período informado no header Retry-After."
+                        "O limite de requisições para " +
+                        "este endpoint foi excedido. " +
+                        "Tente novamente após o período " +
+                        "informado no header Retry-After."
                 };
 
-                await context.HttpContext.Response.WriteAsJsonAsync(
-                    response,
-                    cancellationToken);
+                await context.HttpContext
+                    .Response
+                    .WriteAsJsonAsync(
+                        response,
+                        cancellationToken);
             };
 
             options.AddFixedWindowLimiter(
@@ -161,26 +210,35 @@ public partial class Program
                     limiterOptions.QueueProcessingOrder =
                         QueueProcessingOrder.OldestFirst;
 
-                    limiterOptions.AutoReplenishment = true;
+                    limiterOptions.AutoReplenishment =
+                        true;
                 });
         });
 
         // ============================================================
         // HEALTH CHECK
         // ============================================================
+
         builder.Services
             .AddHealthChecks()
-            .AddDbContextCheck<ApplicationDbContext>("database")
+            .AddDbContextCheck<ApplicationDbContext>(
+                "database")
             .AddCheck(
                 "self",
-                () => HealthCheckResult.Healthy(
-                    "API está funcionando"));
+                () =>
+                    HealthCheckResult.Healthy(
+                        "API está funcionando"));
+
+        // ============================================================
+        // BUILD
+        // ============================================================
 
         var app = builder.Build();
 
         // ============================================================
         // SWAGGER
         // ============================================================
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
@@ -189,7 +247,7 @@ public partial class Program
             {
                 options.SwaggerEndpoint(
                     "/swagger/v1/swagger.json",
-                    "Supermercado API V1");
+                    "Supermercado API V1 - Deprecated");
 
                 options.SwaggerEndpoint(
                     "/swagger/v2/swagger.json",
@@ -198,21 +256,38 @@ public partial class Program
         }
 
         // ============================================================
-        // MIDDLEWARE
+        // PIPELINE
         // ============================================================
+
         app.UseHttpsRedirection();
 
-        app.UseMiddleware<ExceptionHandlerMiddleware>();
+        app.UseMiddleware<
+            ExceptionHandlerMiddleware>();
 
         app.UseRouting();
 
         app.UseRateLimiter();
 
-        // ============================================================
-        // HEALTH CHECK
-        // ============================================================
-        // Não possui RequireRateLimiting, portanto permanece
-        // disponível mesmo após atingir o limite da API.
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments("/api/Produto"))
+            {
+                context.Response.OnStarting(() =>
+                {
+                    context.Response.Headers["api-supported-versions"] =
+                        "1.0, 2.0";
+
+                    return Task.CompletedTask;
+                });
+            }
+
+            await next();
+        });
+
+// ============================================================
+// HEALTH
+// ============================================================
+
         app.MapHealthChecks(
             "/health",
             new HealthCheckOptions
@@ -220,19 +295,11 @@ public partial class Program
                 Predicate = _ => true
             });
 
-        // ============================================================
-        // AUTHORIZATION
-        // ============================================================
         app.UseAuthorization();
 
-        // ============================================================
-        // CONTROLLERS
-        // ============================================================
         app.MapControllers();
 
-        // ============================================================
-        // RUN
-        // ============================================================
         app.Run();
+        
     }
 }

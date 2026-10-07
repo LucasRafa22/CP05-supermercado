@@ -33,46 +33,53 @@ public class ProdutoVersioningTests :
     }
 
     [Fact]
-    public async Task V2_DeveRetornar200()
-    {
-        var response = await _client.GetAsync(
-            "/api/Produto?api-version=2.0");
+public async Task V2_DeveRetornar200()
+{
+    var response = await _client.GetAsync(
+        "/api/Produto?api-version=2.0");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    var body = await response.Content.ReadAsStringAsync();
 
-        var json = await response.Content.ReadAsStringAsync();
+    Assert.True(
+        response.IsSuccessStatusCode,
+        $"STATUS: {(int)response.StatusCode} {response.StatusCode}\n" +
+        $"HEADERS:\n{string.Join(
+            "\n",
+            response.Headers.Select(
+                h => $"{h.Key}: {string.Join(",", h.Value)}"))}\n" +
+        $"BODY:\n{body}");
 
-        using var document = JsonDocument.Parse(json);
+    using var document = JsonDocument.Parse(body);
 
-        Assert.Equal(
-            JsonValueKind.Object,
-            document.RootElement.ValueKind);
+    Assert.Equal(
+        JsonValueKind.Object,
+        document.RootElement.ValueKind);
 
-        Assert.True(
-            document.RootElement.TryGetProperty(
-                "page",
-                out _));
+    Assert.True(
+        document.RootElement.TryGetProperty(
+            "page",
+            out _));
 
-        Assert.True(
-            document.RootElement.TryGetProperty(
-                "pageSize",
-                out _));
+    Assert.True(
+        document.RootElement.TryGetProperty(
+            "pageSize",
+            out _));
 
-        Assert.True(
-            document.RootElement.TryGetProperty(
-                "totalItems",
-                out _));
+    Assert.True(
+        document.RootElement.TryGetProperty(
+            "totalItems",
+            out _));
 
-        Assert.True(
-            document.RootElement.TryGetProperty(
-                "totalPages",
-                out _));
+    Assert.True(
+        document.RootElement.TryGetProperty(
+            "totalPages",
+            out _));
 
-        Assert.True(
-            document.RootElement.TryGetProperty(
-                "items",
-                out _));
-    }
+    Assert.True(
+        document.RootElement.TryGetProperty(
+            "items",
+            out _));
+}
 
     [Fact]
     public async Task Header_DeveSelecionarV1()
