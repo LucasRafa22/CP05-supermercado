@@ -133,7 +133,7 @@ Exemplo:
 ## 1. Clonar o repositório
 
 ```bash
-git clone https://github.com/LucasRafa22/CP04-supermercado.git
+git clone https://github.com/LucasRafa22/CP05-supermercado.git
 ```
 
 Entre na pasta:
