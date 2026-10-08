@@ -112,7 +112,22 @@ public partial class Program
             ProdutoRepository>();
 
         builder.Services.AddScoped<
-            ProdutoService>();
+            ICategoriaRepository,
+            CategoriaRepository>();
+
+        builder.Services.AddScoped<
+            IClienteRepository,
+            ClienteRepository>();
+
+        builder.Services.AddScoped<
+            IItemVendaRepository,
+            ItemVendaRepository>();
+
+        builder.Services.AddScoped<
+            IVendaRepository,
+            VendaRepository>();
+
+        builder.Services.AddScoped<ProdutoService>();
 
         // ============================================================
         // SWAGGER
@@ -265,7 +280,7 @@ public partial class Program
             ExceptionHandlerMiddleware>();
 
         app.UseRouting();
-
+        
         app.UseRateLimiter();
 
         app.Use(async (context, next) =>
