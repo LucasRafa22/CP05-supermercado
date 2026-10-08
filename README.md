@@ -139,7 +139,7 @@ git clone https://github.com/LucasRafa22/CP05-supermercado.git
 Entre na pasta:
 
 ```bash
-cd CP04-supermercado
+cd CP05-supermercado
 ```
 
 ---
